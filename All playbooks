@@ -1,0 +1,77 @@
+</H> Master Play book. It will initiate sub playbook in those roles </H>
+
+$ cat setup_snmp_config.yml
+- hosts: Test_SNMP
+  roles:
+    - read-snmp-config
+    - update-snmp-config
+    - read-snmp-config
+ ----------------------------------------------
+
+## Sub Playbook are as below
+------------------------------------------------
+## Role:  read-snmp-config
+
+$ cat ansible-current-snmp-conf.yml
+---
+- hosts : UPDATE_SNMP
+  tasks:
+  - name: Read SNMPD File
+    shell: cat /etc/snmp/snmpd.conf
+    register: displaylist
+
+  - name: Print SNMPD file
+    debug:
+      msg: "{{displaylist.stdout_lines}}"
+
+  - name: List SNMPD Process
+    shell: ps aux| grep snmpd|grep -v grep
+    register: displayprocess
+
+  - name: Print SNMPD Process
+    debug:
+      msg: "{{displayprocess.stdout_lines}}"
+----------------------------------------------------------------
+## Role: update-snmp-config
+
+$ cat ansible-update-snmp-conf.yml
+---
+- hosts : UPDATE_SNMP
+
+  tasks:
+    - name: Update SNMP Config
+      lineinfile:
+        path: /etc/snmp/snmpd.conf
+        backup: yes
+        insertafter: rocommunity
+        line: "{{ item.line }}"
+      with_items:
+        - {line: '<<String to update>>'}
+        - {line: '<<String to update>>'}
+      notify: Restart SNMPD Service
+
+  handlers:
+     - name: Restart SNMPD Service
+       service: name=snmpd state=restarted
+----------------------------------------------------------------
+
+Incase needs to revert the changes, then execute below playbook
+$ ansible-revert-snmp-conf.yml
+---
+- hosts : Test_SNMPD
+
+  tasks:
+
+    - name: Revert SNMP Config
+      lineinfile:
+        path: /etc/snmp/snmpd.conf
+        backup: yes
+        regexp: "<<Regular expression from file which needs to be remove>>"
+        state: absent
+      notify: Restart SNMPD Service
+  handlers:
+     - name: Restart SNMPD Service
+       service: name=snmpd state=restarted
+
+
+       
